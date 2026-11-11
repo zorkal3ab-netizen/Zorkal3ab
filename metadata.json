@@ -1,0 +1,8 @@
+{
+  "name": "ZORK CRAFT — منصة مودات ماين كرافت",
+  "description": "الموقع الرسمي لمنصة ZORK CRAFT لتحميل أفضل مودات ومابات وسكنات ماين كرافت بدروك للجوال والكمبيوتر بروابط مباشرة وآمنة.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
