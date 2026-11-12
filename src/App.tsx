@@ -68,9 +68,13 @@ export default function App() {
       const res = await fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
-      if (data.authenticated && data.role === 'owner') {
-        setIsServerVerifiedOwner(true);
+      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+        const data = await res.json();
+        if (data.authenticated && data.role === 'owner') {
+          setIsServerVerifiedOwner(true);
+        } else {
+          setIsServerVerifiedOwner(false);
+        }
       } else {
         setIsServerVerifiedOwner(false);
       }

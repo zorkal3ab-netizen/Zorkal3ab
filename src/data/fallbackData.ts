@@ -22,7 +22,7 @@ export const FALLBACK_RESOURCES: ResourceItem[] = [
     creator_name: 'ZORK Community',
     source_url: 'https://zorkcraft.net',
     license_info: 'Community License',
-    cover_image: '/uploads/1017055164_1794181925516_61b98c0e640e.jpg',
+    cover_image: 'assets/aistudio/Screenshot_________________Chrome_21bb11f1.png',
     is_published: 1,
     is_featured: 1,
     install_instructions: 'افتح ملف mcaddon مباشرة باستخدام تطبيق ماين كرافت لتثبيته بنقرة واحدة.',
@@ -39,10 +39,8 @@ export const FALLBACK_RESOURCES: ResourceItem[] = [
     created_at: '2026-10-19T14:00:00.000Z',
     updated_at: '2026-10-19T14:00:00.000Z',
     images: [
-      { id: 'img_1', image_url: '/uploads/1017055164_1794181925516_61b98c0e640e.jpg' },
-      { id: 'img_2', image_url: '/uploads/1017055167_1794181943543_2b07528f12f5.jpg' },
-      { id: 'img_3', image_url: '/uploads/1017055166_1794181943534_a5057948e63c.jpg' },
-      { id: 'img_4', image_url: '/uploads/1017055165_1794181943518_2edd71f04e01.jpg' },
+      { id: 'img_1', image_url: 'assets/aistudio/Screenshot_________________Chrome_21bb11f1.png' },
+      { id: 'img_2', image_url: 'assets/aistudio/Screenshot_________________Chrome_f16c3e16.png' },
     ],
     files: [
       {

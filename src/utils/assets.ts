@@ -6,15 +6,20 @@ export function getAssetUrl(path: string | undefined): string {
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) {
     return path;
   }
-  // Server-hosted uploaded media files must keep root path /uploads/...
-  if (path.startsWith('/uploads/')) {
-    return path;
-  }
-  if (path.startsWith('uploads/')) {
-    return '/' + path;
-  }
-  // Remove leading slash to make static bundled assets relative for GitHub Pages
+
+  // Remove leading slash to normalize path
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return cleanPath;
+
+  // Server-hosted uploaded media files in local dev
+  if (cleanPath.startsWith('uploads/')) {
+    return '/' + cleanPath;
+  }
+
+  const baseUrl = import.meta.env.BASE_URL || './';
+  if (baseUrl === './' || baseUrl === '') {
+    return cleanPath;
+  }
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return `${prefix}${cleanPath}`;
 }
 

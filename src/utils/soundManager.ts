@@ -9,8 +9,12 @@ class SoundManager {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('zork_sound_muted');
-      this.isMuted = saved === 'true';
+      try {
+        const saved = localStorage.getItem('zork_sound_muted');
+        this.isMuted = saved === 'true';
+      } catch {
+        this.isMuted = false;
+      }
     }
   }
 
@@ -29,7 +33,9 @@ class SoundManager {
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('zork_sound_muted', String(this.isMuted));
+      try {
+        localStorage.setItem('zork_sound_muted', String(this.isMuted));
+      } catch {}
     }
     if (!this.isMuted) {
       this.playClick();
