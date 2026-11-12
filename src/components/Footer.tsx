@@ -1,14 +1,11 @@
 import React from 'react';
-import { Lock, Youtube, Shield, FileText, Info, Mail, AlertTriangle } from 'lucide-react';
-import { soundManager } from '../utils/soundManager';
+import { Youtube, Shield, FileText, Info, Mail, AlertTriangle } from 'lucide-react';
 
 interface FooterProps {
   onOpenLegal: (page: string) => void;
-  onOpenOwnerLogin: () => void;
-  isServerVerifiedOwner?: boolean;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenLegal, onOpenOwnerLogin, isServerVerifiedOwner = false }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenLegal }) => {
   return (
     <footer className="mt-16 border-t border-slate-800/80 bg-[#07070B] text-slate-400 pb-20 lg:pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -110,31 +107,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenLegal, onOpenOwnerLogin, i
           <p className="text-[10px] text-slate-600 font-mono">
             جميع الحقوق محفوظة © {new Date().getFullYear()} ZORK CRAFT
           </p>
-        </div>
-
-        {/* 
-          PUBLIC OWNER LOCK (Per Section 3 of Specifications)
-          Always visible to all public visitors with premium metallic chrome design,
-          subtle crimson highlights, 44x44px minimum touch area, and navigation to /admin/login.
-        */}
-        <div className="mt-8 pt-4 border-t border-slate-900/60 flex items-center justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              soundManager.playClick();
-              onOpenOwnerLogin();
-            }}
-            className="group min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-lg bg-gradient-to-b from-[#1C1D26] via-[#13141B] to-[#0A0B10] border border-slate-700/60 hover:border-[#FF284A]/70 text-slate-400 hover:text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_8px_rgba(0,0,0,0.6)] hover:shadow-[0_0_14px_rgba(255,40,74,0.25)] transition-all cursor-pointer flex items-center gap-2.5 focus-visible:ring-2 focus-visible:ring-[#FF284A] focus-visible:ring-offset-2 focus-visible:ring-offset-[#07070B] outline-none"
-            title="دخول المالك"
-            aria-label="دخول المالك"
-          >
-            <div className="w-6 h-6 rounded-md bg-[#0A0B10] border border-slate-700/80 group-hover:border-[#FF284A]/60 flex items-center justify-center transition-colors shadow-inner">
-              <Lock className="w-3.5 h-3.5 text-slate-300 group-hover:text-[#FF284A] transition-colors" />
-            </div>
-            <span className="text-xs font-semibold tracking-wide text-slate-400 group-hover:text-slate-100 transition-colors">
-              دخول المالك
-            </span>
-          </button>
         </div>
       </div>
     </footer>

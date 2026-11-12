@@ -8,9 +8,8 @@ import { ResourceDetailModal } from './components/ResourceDetailModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { Footer } from './components/Footer';
 import { LegalPagesModal } from './components/LegalPagesModal';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { soundManager } from './utils/soundManager';
-import { Sparkles, Download, Clock, Search, FolderOpen, RefreshCw } from 'lucide-react';
+import { Sparkles, Download, Clock, Search, FolderOpen } from 'lucide-react';
 import { FALLBACK_RESOURCES, FALLBACK_CATEGORIES } from './data/fallbackData';
 
 export default function App() {
@@ -33,18 +32,24 @@ export default function App() {
   const [currentCategory, setCurrentCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Resources state (loaded from real backend database)
-  const [resources, setResources] = useState<ResourceItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
-
-  // Server-verified owner authentication state (strictly hidden from public)
-  const [isServerVerifiedOwner, setIsServerVerifiedOwner] = useState<boolean>(false);
+  // Resources state - initialized immediately with published resources for 0ms load time on GitHub Pages
+  const [resources, setResources] = useState<ResourceItem[]>(() =>
+    FALLBACK_RESOURCES.filter((r) => r.is_published === 1)
+  );
+  const [loading, setLoading] = useState<boolean>(false);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>(() => {
+    const counts: Record<string, number> = {};
+    FALLBACK_CATEGORIES.forEach((c) => {
+      counts[c.slug] = FALLBACK_RESOURCES.filter(
+        (r) => r.category_slug === c.slug && r.is_published === 1
+      ).length;
+    });
+    return counts;
+  });
 
   // Modals state
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [legalPage, setLegalPage] = useState<string | null>(null);
-  const [showAdmin, setShowAdmin] = useState<boolean>(false);
 
   // Toggle global sound setting
   const handleToggleSound = () => {
@@ -52,45 +57,9 @@ export default function App() {
     setSoundEnabled(newState);
   };
 
-  // Verify server-side owner session
-  const verifyOwnerSession = useCallback(async () => {
-    let token: string | null = null;
-    try {
-      token = localStorage.getItem('zork_admin_token') || sessionStorage.getItem('zork_admin_token');
-    } catch {
-      token = null;
-    }
-    if (!token) {
-      setIsServerVerifiedOwner(false);
-      return;
-    }
-    try {
-      const res = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-        const data = await res.json();
-        if (data.authenticated && data.role === 'owner') {
-          setIsServerVerifiedOwner(true);
-        } else {
-          setIsServerVerifiedOwner(false);
-        }
-      } else {
-        setIsServerVerifiedOwner(false);
-      }
-    } catch {
-      setIsServerVerifiedOwner(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    verifyOwnerSession();
-  }, [verifyOwnerSession]);
-
-  // Fetch resources with automatic fallback for static hosting (e.g. GitHub Pages)
+  // Fetch resources with silent background sync when backend API is present, without blocking static page load
   const fetchResources = useCallback(async () => {
     try {
-      setLoading(true);
       const params = new URLSearchParams();
       if (currentCategory !== 'all') {
         params.set('category', currentCategory);
@@ -104,17 +73,17 @@ export default function App() {
         const res = await fetch(`/api/resources?${params.toString()}`);
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           const data = await res.json();
-          if (data.success && Array.isArray(data.resources) && data.resources.length > 0) {
+          if (data.success && Array.isArray(data.resources)) {
             setResources(data.resources);
             fetchedSuccessfully = true;
           }
         }
       } catch {
-        // Handled below by fallback
+        // Quietly handled by static fallback
       }
 
       if (!fetchedSuccessfully) {
-        // Fallback for static hosting environments (such as GitHub Pages)
+        // Filter published static resources
         let filtered = FALLBACK_RESOURCES.filter((r) => r.is_published === 1);
         if (currentCategory !== 'all') {
           filtered = filtered.filter((r) => r.category_slug === currentCategory);
@@ -146,7 +115,7 @@ export default function App() {
           }
         }
       } catch {
-        // Handled below
+        // Quietly handled
       }
 
       if (!catCountsUpdated) {
@@ -159,9 +128,7 @@ export default function App() {
         setCategoryCounts(counts);
       }
     } catch (err) {
-      console.error('Failed to fetch resources', err);
-    } finally {
-      setLoading(false);
+      console.error('Failed to update resources', err);
     }
   }, [currentCategory, searchQuery]);
 
@@ -169,7 +136,7 @@ export default function App() {
     fetchResources();
   }, [fetchResources]);
 
-  // Handle URL route checks (/admin, /admin/login, GitHub Pages query p, and hash #resource-...)
+  // Handle URL hash and route checks for resource modals (#/i/..., #resource-...)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
@@ -177,9 +144,7 @@ export default function App() {
 
       // Check if redirected from GitHub Pages 404.html
       if (redirectRoute) {
-        if (redirectRoute.startsWith('/admin') || redirectRoute === '/admin/login') {
-          setShowAdmin(true);
-        } else if (redirectRoute.includes('#/i/')) {
+        if (redirectRoute.includes('#/i/')) {
           const id = redirectRoute.split('#/i/')[1];
           if (id) setSelectedResourceId(id);
         } else if (redirectRoute.startsWith('/#resource-') || redirectRoute.includes('#resource-')) {
@@ -189,21 +154,6 @@ export default function App() {
         // Clean URL parameter without reloading
         const cleanUrl = window.location.pathname + window.location.hash;
         window.history.replaceState(null, '', cleanUrl);
-      }
-
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      const isAdminRoute =
-        path === '/admin' ||
-        path === '/admin/login' ||
-        path.endsWith('/admin') ||
-        path.endsWith('/admin/login') ||
-        path.includes('/admin/') ||
-        hash === '#admin' ||
-        hash === '#admin/login';
-
-      if (isAdminRoute) {
-        setShowAdmin(true);
       }
 
       const handleHashChange = () => {
@@ -217,8 +167,6 @@ export default function App() {
         } else if (currentHash.startsWith('#resource-')) {
           const id = currentHash.replace('#resource-', '').trim();
           if (id) setSelectedResourceId(id);
-        } else if (currentHash === '#admin' || currentHash === '#admin/login') {
-          setShowAdmin(true);
         } else if (!currentHash || currentHash === '#' || currentHash === '#/') {
           setSelectedResourceId(null);
         }
@@ -468,19 +416,10 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer with legal info and public owner lock */}
-      <Footer
-        onOpenLegal={(page) => setLegalPage(page)}
-        onOpenOwnerLogin={() => {
-          if (typeof window !== 'undefined' && window.location.pathname !== '/admin/login') {
-            window.history.pushState({}, '', '/admin/login');
-          }
-          setShowAdmin(true);
-        }}
-        isServerVerifiedOwner={isServerVerifiedOwner}
-      />
+      {/* Footer with legal info */}
+      <Footer onOpenLegal={(page) => setLegalPage(page)} />
 
-      {/* Resource Detail Modal (V4 screenshot-matched layout) */}
+      {/* Resource Detail Modal */}
       {selectedResourceId && (
         <ResourceDetailModal
           resourceId={selectedResourceId}
@@ -495,21 +434,6 @@ export default function App() {
         <LegalPagesModal
           initialTab={legalPage}
           onClose={() => setLegalPage(null)}
-        />
-      )}
-
-      {/* Private Owner Dashboard Modal */}
-      {showAdmin && (
-        <AdminDashboard
-          onClose={() => {
-            setShowAdmin(false);
-            verifyOwnerSession();
-            if (window.location.pathname.startsWith('/admin')) {
-              window.history.pushState({}, '', '/');
-            }
-          }}
-          onResourceChanged={() => fetchResources()}
-          onAuthChange={() => verifyOwnerSession()}
         />
       )}
     </div>
