@@ -11,11 +11,15 @@ import { LegalPagesModal } from './components/LegalPagesModal';
 import { soundManager } from './utils/soundManager';
 import { Sparkles, Download, Clock, Search, FolderOpen } from 'lucide-react';
 import { FALLBACK_RESOURCES, FALLBACK_CATEGORIES } from './data/fallbackData';
+import { isStaticHostingEnvironment, shouldSkipLoadingIntro } from './utils/loadingLifecycle';
 
 export default function App() {
-  // Subscription gate state (shown once per session)
+  // Subscription gate state (shown once per session; bypassed cleanly with ?autostart=1)
   const [hasConfirmedSubscription, setHasConfirmedSubscription] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
+      if (shouldSkipLoadingIntro(window.location.search)) {
+        return true;
+      }
       try {
         return sessionStorage.getItem('zork_subscription_confirmed') === 'true';
       } catch {
@@ -68,18 +72,24 @@ export default function App() {
         params.set('search', searchQuery.trim());
       }
 
+      const isStaticHost =
+        typeof window !== 'undefined' &&
+        isStaticHostingEnvironment(window.location.hostname, window.location.protocol);
+
       let fetchedSuccessfully = false;
-      try {
-        const res = await fetch(`/api/resources?${params.toString()}`);
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.resources)) {
-            setResources(data.resources);
-            fetchedSuccessfully = true;
+      if (!isStaticHost) {
+        try {
+          const res = await fetch(`/api/resources?${params.toString()}`);
+          if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.resources)) {
+              setResources(data.resources);
+              fetchedSuccessfully = true;
+            }
           }
+        } catch {
+          // Quietly handled by static fallback
         }
-      } catch {
-        // Quietly handled by static fallback
       }
 
       if (!fetchedSuccessfully) {
@@ -101,21 +111,23 @@ export default function App() {
 
       // Refresh category counts
       let catCountsUpdated = false;
-      try {
-        const catRes = await fetch('/api/categories');
-        if (catRes.ok && catRes.headers.get('content-type')?.includes('application/json')) {
-          const catData = await catRes.json();
-          if (catData.success && Array.isArray(catData.categories)) {
-            const counts: Record<string, number> = {};
-            catData.categories.forEach((c: any) => {
-              counts[c.slug] = c.resource_count ?? 0;
-            });
-            setCategoryCounts(counts);
-            catCountsUpdated = true;
+      if (!isStaticHost) {
+        try {
+          const catRes = await fetch('/api/categories');
+          if (catRes.ok && catRes.headers.get('content-type')?.includes('application/json')) {
+            const catData = await catRes.json();
+            if (catData.success && Array.isArray(catData.categories)) {
+              const counts: Record<string, number> = {};
+              catData.categories.forEach((c: any) => {
+                counts[c.slug] = c.resource_count ?? 0;
+              });
+              setCategoryCounts(counts);
+              catCountsUpdated = true;
+            }
           }
+        } catch {
+          // Quietly handled
         }
-      } catch {
-        // Quietly handled
       }
 
       if (!catCountsUpdated) {
@@ -131,6 +143,11 @@ export default function App() {
       console.error('Failed to update resources', err);
     }
   }, [currentCategory, searchQuery]);
+
+  // Signal preloader dismissal cleanly once the React app commits without blocking on optional assets
+  useEffect(() => {
+    window.__ZORK_LOADER__?.markReady();
+  }, []);
 
   useEffect(() => {
     fetchResources();

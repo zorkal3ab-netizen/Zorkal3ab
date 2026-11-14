@@ -3,7 +3,7 @@ import { Volume2, VolumeX, Search, Compass, Box, Sparkles, User, Map, Layers } f
 import { soundManager } from '../utils/soundManager';
 import { getAssetUrl } from '../utils/assets';
 
-export const CIRCULAR_MASCOT_SRC = getAssetUrl('assets/aistudio/________25_20261021085710_86e023ca.jpg');
+export const CIRCULAR_MASCOT_SRC = getAssetUrl('assets/mascot-avatar.jpg');
 
 interface NavbarProps {
   currentCategory: string;

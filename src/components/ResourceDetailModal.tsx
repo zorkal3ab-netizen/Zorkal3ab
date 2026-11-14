@@ -19,6 +19,8 @@ import {
 import { ResourceItem, ResourceFile } from '../types';
 import { getAssetUrl } from '../utils/assets';
 import { soundManager } from '../utils/soundManager';
+import { FALLBACK_RESOURCES } from '../data/fallbackData';
+import { isStaticHostingEnvironment } from '../utils/loadingLifecycle';
 
 export interface ResourceDetailModalProps {
   item?: ResourceItem;
@@ -97,15 +99,30 @@ export const ResourceDetailModal: React.FC<ResourceDetailModalProps> = ({
       return;
     }
     if (resourceId) {
+      const staticFallback = FALLBACK_RESOURCES.find((r) => r.id === resourceId);
+      const isStaticHost =
+        typeof window !== 'undefined' &&
+        isStaticHostingEnvironment(window.location.hostname, window.location.protocol);
+
+      if (isStaticHost) {
+        if (staticFallback) setLoadedItem(staticFallback);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       fetch(`/api/resources/${resourceId}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.resource) {
             setLoadedItem(data.resource);
+          } else if (staticFallback) {
+            setLoadedItem(staticFallback);
           }
         })
-        .catch(() => {})
+        .catch(() => {
+          if (staticFallback) setLoadedItem(staticFallback);
+        })
         .finally(() => setLoading(false));
     }
   }, [propItem, resourceId]);

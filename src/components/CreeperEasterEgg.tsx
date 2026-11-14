@@ -2,7 +2,7 @@ import React from 'react';
 import { getAssetUrl } from '../utils/assets';
 
 export const METALLIC_LOGO_SRC = getAssetUrl('assets/aistudio/file_00000000deb881f4abdeb400840e0850_1ec1cc6a.png');
-export const CIRCULAR_MASCOT_SRC = getAssetUrl('assets/aistudio/________25_20261021085710_86e023ca.jpg');
+export const CIRCULAR_MASCOT_SRC = getAssetUrl('assets/mascot-avatar.jpg');
 
 /**
  * Pure Circular Hero Mascot

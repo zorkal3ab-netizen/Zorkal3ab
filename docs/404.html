@@ -12,9 +12,12 @@
       var pathSegmentsToKeep = 1;
 
       var l = window.location;
+      var segments = l.pathname.split('/').filter(Boolean);
       // If we are on custom domain, localhost, or root domain, keep 0 segments
       if (l.hostname === 'localhost' || l.hostname.indexOf('.run.app') !== -1 || (l.hostname.endsWith('github.io') === false && l.hostname.split('.').length === 2)) {
         pathSegmentsToKeep = 0;
+      } else if (segments.length >= 2 && segments[1] === 'docs') {
+        pathSegmentsToKeep = 2;
       }
 
       l.replace(

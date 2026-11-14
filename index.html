@@ -17,7 +17,8 @@
     <script>
       (function() {
         var path = window.location.pathname;
-        if (path && !path.endsWith('/') && !path.split('/').pop().includes('.')) {
+        var lastSegment = path.split('/').pop() || '';
+        if (path && !path.endsWith('/') && lastSegment.indexOf('.') === -1) {
           window.location.replace(path + '/' + window.location.search + window.location.hash);
         }
       })();
@@ -27,7 +28,7 @@
     <script type="text/javascript">
       (function(l) {
         if (l.search[1] === '/') {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
+          var decoded = l.search.slice(1).split('&').map(function(s) {
             return s.replace(/~and~/g, '&');
           }).join('?');
           window.history.replaceState(null, null,
@@ -36,25 +37,304 @@
         }
       }(window.location));
     </script>
+
+    <!-- Early script error tracker before bundled module script in <head> -->
+    <script>
+      (function() {
+        window.__ZORK_EARLY_SCRIPT_ERROR__ = null;
+        window.addEventListener('error', function(e) {
+          var t = e && e.target;
+          if (t && t.tagName === 'SCRIPT') {
+            window.__ZORK_EARLY_SCRIPT_ERROR__ = t.getAttribute('src') || 'entry';
+          }
+        }, true);
+      })();
+    </script>
+
+    <style>
+      #zork-preloader {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #07070B;
+        color: #f1f5f9;
+        font-family: 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 1.5rem;
+        transition: opacity 280ms ease, visibility 280ms ease;
+      }
+      #zork-preloader[data-state="dismissed"] {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      #zork-preloader-track {
+        width: 200px;
+        height: 6px;
+        background-color: #1e293b;
+        border-radius: 9999px;
+        overflow: hidden;
+        direction: ltr;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      #zork-progress-fill {
+        width: 15%;
+        height: 100%;
+        background: linear-gradient(90deg, #FF284A, #35D16F);
+        border-radius: 9999px;
+        transition: width 240ms ease-out;
+      }
+    </style>
   </head>
   <body style="background-color: #07070b; color: #f1f5f9; min-height: 100vh; margin: 0;" class="bg-[#07070b] text-slate-100 min-h-screen selection:bg-emerald-500 selection:text-black">
-    <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #07070B; color: #f1f5f9; font-family: 'Tajawal', sans-serif; text-align: center; padding: 1.5rem;">
-        <div style="font-size: 1.85rem; font-weight: 900; letter-spacing: 0.05em; margin-bottom: 1.25rem;">
-          <span style="color: #FF284A;">ZORK</span> CRAFT
-        </div>
-        <div style="width: 160px; height: 4px; background-color: #1e293b; border-radius: 9999px; overflow: hidden; position: relative;">
-          <div style="width: 50%; height: 100%; background: linear-gradient(90deg, #FF284A, #35D16F); animation: zork-pulse 1.2s infinite ease-in-out;"></div>
-        </div>
-        <style>
-          @keyframes zork-pulse {
-            0% { transform: translateX(-100%); }
-            50% { transform: translateX(60%); }
-            100% { transform: translateX(220%); }
-          }
-        </style>
+    <!-- Dedicated preloader overlay (sibling of #root so React mount is isolated and dismissible cleanly) -->
+    <div id="zork-preloader" role="status" aria-live="polite" aria-label="جاري تحميل منصة ZORK CRAFT" data-state="loading">
+      <div style="font-size: 1.95rem; font-weight: 900; letter-spacing: 0.06em; margin-bottom: 1.15rem; user-select: none;">
+        <span style="color: #FF284A;">ZORK</span> CRAFT
+      </div>
+
+      <div id="zork-preloader-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="15">
+        <div id="zork-progress-fill"></div>
+      </div>
+
+      <p id="zork-loader-status" style="margin-top: 0.85rem; font-size: 0.82rem; color: #94a3b8; font-weight: 600;">
+        جاري تهيئة المنصة... 15%
+      </p>
+
+      <button
+        id="zork-loader-skip"
+        type="button"
+        hidden
+        style="margin-top: 1rem; padding: 0.4rem 1rem; font-size: 0.78rem; font-weight: 700; color: #cbd5e1; background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 0.5rem; cursor: pointer;"
+      >
+        تخطي والمتابعة
+      </button>
+
+      <div
+        id="zork-loader-error"
+        hidden
+        role="alert"
+        style="margin-top: 1.25rem; max-width: 340px; padding: 1rem 1.15rem; background: rgba(24, 14, 22, 0.92); border: 1px solid rgba(255, 40, 74, 0.45); border-radius: 0.85rem;"
+      >
+        <p id="zork-loader-error-text" style="margin: 0 0 0.85rem 0; font-size: 0.86rem; line-height: 1.6; color: #fecdd3; font-weight: 600;">
+          تعذر إكمال تحميل الموقع. يرجى المحاولة مرة أخرى.
+        </p>
+        <button
+          id="zork-loader-retry"
+          type="button"
+          style="padding: 0.5rem 1.2rem; font-size: 0.85rem; font-weight: 800; color: #ffffff; background: linear-gradient(90deg, #FF284A, #FF791F); border: none; border-radius: 0.55rem; cursor: pointer;"
+        >
+          إعادة المحاولة
+        </button>
       </div>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
+
+    <div id="root"></div>
+
+    <script>
+      (function() {
+        if (window.__ZORK_LOADER_INIT__) return;
+        window.__ZORK_LOADER_INIT__ = true;
+
+        var preloader = document.getElementById('zork-preloader');
+        var fillEl = document.getElementById('zork-progress-fill');
+        var trackEl = document.getElementById('zork-preloader-track');
+        var statusEl = document.getElementById('zork-loader-status');
+        var skipBtn = document.getElementById('zork-loader-skip');
+        var errorBox = document.getElementById('zork-loader-error');
+        var errorTextEl = document.getElementById('zork-loader-error-text');
+        var retryBtn = document.getElementById('zork-loader-retry');
+
+        var state = {
+          progress: 15,
+          mounted: false,
+          ready: false,
+          dismissed: false,
+          failed: false,
+          autostart: false
+        };
+
+        try {
+          var searchParams = new URLSearchParams(window.location.search || '');
+          var autostartParam = searchParams.get('autostart');
+          state.autostart = autostartParam === '1' || autostartParam === 'true';
+        } catch (e) {}
+
+        function setProgress(pct, label) {
+          if (state.dismissed || state.failed) return;
+          var clamped = Math.max(state.progress, Math.min(100, Math.round(pct)));
+          state.progress = clamped;
+          if (fillEl) fillEl.style.width = clamped + '%';
+          if (trackEl) trackEl.setAttribute('aria-valuenow', String(clamped));
+          if (statusEl && label) {
+            statusEl.textContent = label + ' ' + clamped + '%';
+          }
+        }
+
+        function hideOverlay() {
+          if (!preloader || state.dismissed) return;
+          if (!state.mounted && !state.ready) return;
+          state.dismissed = true;
+          preloader.setAttribute('data-state', 'dismissed');
+          preloader.setAttribute('aria-hidden', 'true');
+          document.documentElement.dataset.zorkLoaded = '1';
+          window.setTimeout(function() {
+            if (preloader) preloader.style.display = 'none';
+          }, 300);
+        }
+
+        function showError(message) {
+          if (state.mounted || state.ready || state.dismissed) return;
+          state.failed = true;
+          if (preloader) preloader.setAttribute('data-state', 'error');
+          if (skipBtn) skipBtn.hidden = true;
+          if (statusEl) statusEl.textContent = 'توقف التحميل';
+          if (errorTextEl && message) errorTextEl.textContent = message;
+          if (errorBox) errorBox.hidden = false;
+        }
+
+        function attemptDocsFallback(reasonMessage) {
+          if (state.mounted || state.ready || state.dismissed) return;
+          var path = window.location.pathname || '';
+          if (path.indexOf('/docs/') !== -1) {
+            showError(reasonMessage);
+            return;
+          }
+          // Check if built static output exists under ./docs/ (handles GitHub Pages branch root / deployments)
+          fetch('./docs/index.html', { method: 'HEAD', cache: 'no-store' })
+            .then(function(res) {
+              var ct = (res.headers.get('content-type') || '').toLowerCase();
+              if (res.ok && (ct === '' || ct.indexOf('html') !== -1)) {
+                window.location.replace('./docs/' + window.location.search + window.location.hash);
+              } else {
+                showError(reasonMessage);
+              }
+            })
+            .catch(function() {
+              showError(reasonMessage);
+            });
+        }
+
+        if (skipBtn) {
+          skipBtn.addEventListener('click', function() {
+            if (state.mounted || state.ready) {
+              hideOverlay();
+            }
+          });
+        }
+
+        if (retryBtn) {
+          retryBtn.addEventListener('click', function() {
+            window.location.reload();
+          });
+        }
+
+        window.__ZORK_LOADER__ = {
+          markDomReady: function() {
+            setProgress(35, 'جاري تحميل المكونات...');
+          },
+          markBundleLoaded: function() {
+            setProgress(65, 'جاري تشغيل التطبيق...');
+          },
+          markMounted: function() {
+            state.mounted = true;
+            state.failed = false;
+            if (errorBox) errorBox.hidden = true;
+            setProgress(90, 'اكتمل التجهيز...');
+            if (skipBtn) skipBtn.hidden = false;
+            if (state.autostart) {
+              this.markReady();
+            }
+          },
+          markReady: function() {
+            state.mounted = true;
+            state.ready = true;
+            state.failed = false;
+            if (errorBox) errorBox.hidden = true;
+            setProgress(100, 'مرحبًا بك!');
+            window.requestAnimationFrame(function() {
+              hideOverlay();
+            });
+          },
+          markError: function(message) {
+            showError(message || 'تعذر تشغيل التطبيق. يرجى إعادة المحاولة.');
+          },
+          isAutostart: function() {
+            return state.autostart;
+          },
+          getState: function() {
+            return {
+              progress: state.progress,
+              mounted: state.mounted,
+              ready: state.ready,
+              dismissed: state.dismissed,
+              failed: state.failed
+            };
+          }
+        };
+
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+          window.__ZORK_LOADER__.markDomReady();
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            window.__ZORK_LOADER__.markDomReady();
+          }, { once: true });
+        }
+
+        window.addEventListener('error', function(event) {
+          if (state.mounted || state.ready || state.dismissed) return;
+          var target = event && event.target;
+          var isScriptError = target && target.tagName === 'SCRIPT';
+          if (isScriptError) {
+            var src = target.getAttribute('src') || '';
+            if (src.indexOf('.tsx') !== -1 || src.indexOf('index-') !== -1 || target.id === 'zork-entry') {
+              if (src.indexOf('.tsx') !== -1) {
+                attemptDocsFallback('تعذر تشغيل ملفات المصدر مباشرة على الاستضافة الثابتة.');
+              } else {
+                showError('تعذر تحميل حزمة التطبيق الأساسية. تحقق من الاتصال وأعد المحاولة.');
+              }
+            }
+            return;
+          }
+          if (event && event.message) {
+            showError('حدث خطأ أثناء تهيئة التطبيق. يرجى إعادة المحاولة.');
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function() {
+          if (!state.mounted && !state.ready && !state.dismissed) {
+            showError('تعذر إكمال تهيئة التطبيق. يرجى إعادة المحاولة.');
+          }
+        });
+
+        // Reveal skip button once mounted if transition takes extra moment, and enforce 6.5s safety timeout
+        window.setTimeout(function() {
+          if (state.mounted && !state.dismissed && skipBtn && !state.failed) {
+            skipBtn.hidden = false;
+          }
+        }, 1800);
+
+        window.setTimeout(function() {
+          if (state.dismissed) return;
+          if (state.mounted || state.ready) {
+            window.__ZORK_LOADER__.markReady();
+            return;
+          }
+          var entry = document.getElementById('zork-entry');
+          var entrySrc = entry ? (entry.getAttribute('src') || '') : '';
+          if (entrySrc.indexOf('.tsx') !== -1) {
+            attemptDocsFallback('تعذر تشغيل ملفات المصدر غير المبنية. تأكد من تفعيل مجلد docs أو GitHub Actions.');
+          } else {
+            showError('استغرق تحميل الموقع وقتًا أطول من المتوقع. تأكد من اتصالك بالإنترنت ثم أعد المحاولة.');
+          }
+        }, 6500);
+      })();
+    </script>
+
+    <script id="zork-entry" type="module" src="/src/main.tsx" onload="window.__ZORK_LOADER__ && window.__ZORK_LOADER__.markBundleLoaded()"></script>
   </body>
 </html>
